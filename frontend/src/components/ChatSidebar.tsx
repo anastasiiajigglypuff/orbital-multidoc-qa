@@ -62,14 +62,24 @@ export function ChatSidebar({
 								exit={{ opacity: 0, height: 0 }}
 								transition={{ duration: 0.15 }}
 							>
-								<button
-									type="button"
-									className={`group flex w-full items-center rounded-lg px-3 py-2.5 text-left transition-colors ${
+								{/* Row is a div[role=button], not a <button>, so the delete
+								    control below can be a real <button> without nesting one
+								    button inside another (invalid DOM). */}
+								<div
+									role="button"
+									tabIndex={0}
+									className={`group flex w-full cursor-pointer items-center rounded-lg px-3 py-2.5 text-left transition-colors ${
 										selectedId === conversation.id
 											? "bg-neutral-100"
 											: "hover:bg-neutral-50"
 									}`}
 									onClick={() => onSelect(conversation.id)}
+									onKeyDown={(e) => {
+										if (e.key === "Enter" || e.key === " ") {
+											e.preventDefault();
+											onSelect(conversation.id);
+										}
+									}}
 									onMouseEnter={() => setHoveredId(conversation.id)}
 									onMouseLeave={() => setHoveredId(null)}
 								>
@@ -97,7 +107,7 @@ export function ChatSidebar({
 											</button>
 										)}
 									</div>
-								</button>
+								</div>
 							</motion.div>
 						))}
 					</AnimatePresence>
