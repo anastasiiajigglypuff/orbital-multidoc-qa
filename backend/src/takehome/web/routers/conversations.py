@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from takehome.db.models import Conversation
 from takehome.db.session import get_session
 from takehome.services.conversation import (
     create_conversation,
@@ -16,6 +17,24 @@ from takehome.services.conversation import (
 )
 
 router = APIRouter(prefix="/api/conversations", tags=["conversations"])
+
+
+def _document_infos(conversation: Conversation) -> list[DocumentInfo]:
+    """Map all of a conversation's documents to DocumentInfo in a stable order.
+
+    Ordered by upload time then id so the tile order, API order, and prompt order
+    all match.
+    """
+    docs = sorted(conversation.documents, key=lambda d: (d.uploaded_at, d.id))
+    return [
+        DocumentInfo(
+            id=doc.id,
+            filename=doc.filename,
+            page_count=doc.page_count,
+            uploaded_at=doc.uploaded_at,
+        )
+        for doc in docs
+    ]
 
 
 # --------------------------------------------------------------------------- #
@@ -33,22 +52,22 @@ class ConversationListItem(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class DocumentInfo(BaseModel):
+    id: str
+    filename: str
+    page_count: int
+    uploaded_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class ConversationDetail(BaseModel):
     id: str
     title: str
     created_at: datetime
     updated_at: datetime
     has_document: bool
-    document: DocumentInfo | None = None
-
-    model_config = {"from_attributes": True}
-
-
-class DocumentInfo(BaseModel):
-    id: str
-    filename: str
-    page_count: int
-    uploaded_at: datetime
+    documents: list[DocumentInfo] = []
 
     model_config = {"from_attributes": True}
 
@@ -96,7 +115,7 @@ async def create_conversation_endpoint(
         created_at=conversation.created_at,
         updated_at=conversation.updated_at,
         has_document=False,
-        document=None,
+        documents=[],
     )
 
 
@@ -110,23 +129,14 @@ async def get_conversation_endpoint(
     if conversation is None:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
-    doc_info: DocumentInfo | None = None
-    if conversation.documents:
-        doc = conversation.documents[0]
-        doc_info = DocumentInfo(
-            id=doc.id,
-            filename=doc.filename,
-            page_count=doc.page_count,
-            uploaded_at=doc.uploaded_at,
-        )
-
+    documents = _document_infos(conversation)
     return ConversationDetail(
         id=conversation.id,
         title=conversation.title,
         created_at=conversation.created_at,
         updated_at=conversation.updated_at,
-        has_document=doc_info is not None,
-        document=doc_info,
+        has_document=len(documents) > 0,
+        documents=documents,
     )
 
 
@@ -141,23 +151,14 @@ async def update_conversation_endpoint(
     if conversation is None:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
-    doc_info: DocumentInfo | None = None
-    if conversation.documents:
-        doc = conversation.documents[0]
-        doc_info = DocumentInfo(
-            id=doc.id,
-            filename=doc.filename,
-            page_count=doc.page_count,
-            uploaded_at=doc.uploaded_at,
-        )
-
+    documents = _document_infos(conversation)
     return ConversationDetail(
         id=conversation.id,
         title=conversation.title,
         created_at=conversation.created_at,
         updated_at=conversation.updated_at,
-        has_document=doc_info is not None,
-        document=doc_info,
+        has_document=len(documents) > 0,
+        documents=documents,
     )
 
 

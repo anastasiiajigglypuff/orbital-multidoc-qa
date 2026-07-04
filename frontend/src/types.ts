@@ -1,3 +1,7 @@
+// Citations are parsed from Message.content (see lib/citations); the backend
+// does not add a new Message field for them.
+export type { Citation } from "./lib/citations";
+
 export interface Conversation {
 	id: string;
 	title: string;
@@ -24,5 +28,5 @@ export interface Document {
 }
 
 export interface ConversationDetail extends Conversation {
-	document?: Document;
+	documents: Document[];
 }

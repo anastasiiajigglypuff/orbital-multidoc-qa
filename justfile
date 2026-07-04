@@ -74,6 +74,10 @@ db-shell:
 # Run all checks
 check: check-backend check-frontend
 
+# Run backend tests
+test:
+    docker compose exec backend uv run pytest backend/tests
+
 # Format all code
 fmt: fmt-backend fmt-frontend
 

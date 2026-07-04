@@ -25,12 +25,16 @@ export default function App() {
 		streaming,
 		streamingContent,
 		send,
+		streamSummary,
 	} = useMessages(selectedId);
 
 	const {
-		document,
+		documents,
+		selectedDocument,
+		selectedId: selectedDocId,
+		selectDocument,
 		upload,
-		refresh: refreshDocument,
+		error: documentError,
 	} = useDocument(selectedId);
 
 	const handleSend = useCallback(
@@ -42,14 +46,15 @@ export default function App() {
 	);
 
 	const handleUpload = useCallback(
-		async (file: File) => {
-			const doc = await upload(file);
-			if (doc) {
-				refreshDocument();
+		async (files: File[]) => {
+			const docs = await upload(files);
+			if (docs && docs.length > 0) {
 				refreshConversations();
+				// Proactively stream a brief summary of the new document(s).
+				await streamSummary(docs.map((d) => d.id));
 			}
 		},
-		[upload, refreshDocument, refreshConversations],
+		[upload, refreshConversations, streamSummary],
 	);
 
 	const handleCreate = useCallback(async () => {
@@ -71,16 +76,23 @@ export default function App() {
 				<ChatWindow
 					messages={messages}
 					loading={messagesLoading}
-					error={messagesError}
+					error={messagesError ?? documentError}
 					streaming={streaming}
 					streamingContent={streamingContent}
-					hasDocument={!!document}
+					hasDocument={documents.length > 0}
 					conversationId={selectedId}
+					documents={documents}
 					onSend={handleSend}
 					onUpload={handleUpload}
+					onSelectDocument={selectDocument}
 				/>
 
-				<DocumentViewer document={document} />
+				<DocumentViewer
+					documents={documents}
+					selectedId={selectedDocId}
+					onSelect={selectDocument}
+					selectedDocument={selectedDocument}
+				/>
 			</div>
 		</TooltipProvider>
 	);

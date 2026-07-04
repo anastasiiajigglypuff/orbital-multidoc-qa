@@ -7,10 +7,22 @@ import type {
 
 const BASE = "/api";
 
+async function errorMessage(response: Response): Promise<string> {
+	const text = await response.text().catch(() => "");
+	// FastAPI returns { "detail": "..." } — surface that human-readable message
+	// rather than the raw JSON envelope.
+	try {
+		const parsed = JSON.parse(text) as { detail?: unknown };
+		if (typeof parsed.detail === "string") return parsed.detail;
+	} catch {
+		// not JSON; fall through
+	}
+	return text || `Request failed (${response.status})`;
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
 	if (!response.ok) {
-		const text = await response.text().catch(() => "Unknown error");
-		throw new Error(`API error ${response.status}: ${text}`);
+		throw new Error(await errorMessage(response));
 	}
 	return response.json() as Promise<T>;
 }
@@ -34,8 +46,7 @@ export async function deleteConversation(id: string): Promise<void> {
 		method: "DELETE",
 	});
 	if (!res.ok) {
-		const text = await res.text().catch(() => "Unknown error");
-		throw new Error(`API error ${res.status}: ${text}`);
+		throw new Error(await errorMessage(res));
 	}
 }
 
@@ -63,23 +74,42 @@ export async function sendMessage(
 		body: JSON.stringify({ content }),
 	});
 	if (!res.ok) {
-		const text = await res.text().catch(() => "Unknown error");
-		throw new Error(`API error ${res.status}: ${text}`);
+		throw new Error(await errorMessage(res));
 	}
 	return res;
 }
 
-export async function uploadDocument(
+export async function uploadDocuments(
 	conversationId: string,
-	file: File,
-): Promise<Document> {
+	files: File[],
+): Promise<Document[]> {
 	const formData = new FormData();
-	formData.append("file", file);
+	for (const file of files) {
+		formData.append("files", file);
+	}
 	const res = await fetch(`${BASE}/conversations/${conversationId}/documents`, {
 		method: "POST",
 		body: formData,
 	});
-	return handleResponse<Document>(res);
+	return handleResponse<Document[]>(res);
+}
+
+export async function streamDocumentSummary(
+	conversationId: string,
+	documentIds: string[],
+): Promise<Response> {
+	const res = await fetch(
+		`${BASE}/conversations/${conversationId}/documents/summary`,
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ document_ids: documentIds }),
+		},
+	);
+	if (!res.ok) {
+		throw new Error(await errorMessage(res));
+	}
+	return res;
 }
 
 export function getDocumentUrl(documentId: string): string {

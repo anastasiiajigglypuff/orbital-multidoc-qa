@@ -5,17 +5,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 interface ChatInputProps {
 	onSend: (content: string) => void;
-	onUpload: (file: File) => void;
+	onUpload: (files: File[]) => void;
 	disabled: boolean;
-	hasDocument: boolean;
 }
 
-export function ChatInput({
-	onSend,
-	onUpload,
-	disabled,
-	hasDocument,
-}: ChatInputProps) {
+export function ChatInput({ onSend, onUpload, disabled }: ChatInputProps) {
 	const [value, setValue] = useState("");
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
@@ -49,11 +43,11 @@ export function ChatInput({
 
 	const handleFileChange = useCallback(
 		(e: React.ChangeEvent<HTMLInputElement>) => {
-			const file = e.target.files?.[0];
-			if (file) {
-				onUpload(file);
+			const files = e.target.files ? Array.from(e.target.files) : [];
+			if (files.length > 0) {
+				onUpload(files);
 			}
-			// Reset the input so the same file can be selected again
+			// Reset the input so the same file(s) can be selected again
 			if (fileInputRef.current) {
 				fileInputRef.current.value = "";
 			}
@@ -71,22 +65,20 @@ export function ChatInput({
 								variant="ghost"
 								size="icon"
 								className="h-8 w-8 flex-shrink-0"
-								disabled={hasDocument}
 								onClick={() => fileInputRef.current?.click()}
 							>
 								<Paperclip className="h-4 w-4 text-neutral-500" />
 							</Button>
 						</div>
 					</TooltipTrigger>
-					{hasDocument && (
-						<TooltipContent>Document already uploaded</TooltipContent>
-					)}
+					<TooltipContent>Attach documents</TooltipContent>
 				</Tooltip>
 
 				<input
 					ref={fileInputRef}
 					type="file"
 					accept=".pdf"
+					multiple
 					className="hidden"
 					onChange={handleFileChange}
 				/>
@@ -97,7 +89,7 @@ export function ChatInput({
 					onChange={(e) => setValue(e.target.value)}
 					onInput={handleInput}
 					onKeyDown={handleKeyDown}
-					placeholder="Ask a question about your document..."
+					placeholder="Ask a question about your documents..."
 					rows={1}
 					className="max-h-[200px] min-h-[36px] flex-1 resize-none bg-transparent py-1.5 text-sm text-neutral-800 placeholder-neutral-400 outline-none"
 					disabled={disabled}
